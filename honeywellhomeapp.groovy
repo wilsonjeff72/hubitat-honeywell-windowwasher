@@ -910,7 +910,7 @@ def refreshRemoteSensor(com.hubitat.app.DeviceWrapper device, retry=false)
     }
     LogDebug( "roomJson: ${roomJson}")
     //TO DO: Fix accessory indexing workaround (if possible)
-    refreshHelper(roomJson, "roomAvgTemp", "temperature", device, tempUnits, false, false)
+    refreshSensorTemperature(roomJson.accessories[0], "temperature", "temperature", device, tempUnits)
     refreshHelper(roomJson, "roomAvgHumidity", "humidity", device, null, false, false)
     refreshHelper(roomJson.accessories[0], "status", "batterystatus", device, null, false, false)
     refreshHelper(roomJson, "roomName", "roomName", device, null, false, false)
@@ -1089,4 +1089,44 @@ def setThermosatFan(com.hubitat.app.DeviceWrapper device, fan=null, retry=false)
 
     refreshThermosat(device)
     return true;
+}
+
+///
+//  Hack Celcius support in remote sensors since Honeywell API always returns Fahrenheit values
+//
+def refreshSensorTemperature(jsonString, cloudString, deviceString, com.hubitat.app.DeviceWrapper device, optionalUnits)
+{
+    try
+    {
+        LogDebug("refreshSensorTemperature() cloudString:${cloudString} - deviceString:${deviceString} - device:${device} - optionalUnits:${optionalUnits}")
+
+        def value = jsonString.get(cloudString)
+        LogDebug("refreshSensorTemperature-${cloudString}: ${value}")
+
+        if (value == null)
+        {
+            LogDebug("Sensor Does not Support: ${deviceString} (${cloudString})")
+            return false;
+        }
+        if (optionalUnits == 'C')
+        {
+            value = ToCelcius(value)
+            sendEvent(device, [name: deviceString, value: value])
+        }
+        else
+        {
+            sendEvent(device, [name: deviceString, value: value])
+        }
+    }
+    catch (java.lang.NullPointerException e)
+    {
+        LogDebug("Sensor Does not Support: ${deviceString} (${cloudString})")
+        return false;
+    }
+
+    return true;
+}
+
+def ToCelcius(fTemp) {
+    return Math.round((fTemp - 32) * 5/9 * 10.0) / 10.0;
 }
