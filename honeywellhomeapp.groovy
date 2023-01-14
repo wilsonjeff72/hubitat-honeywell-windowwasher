@@ -917,7 +917,7 @@ def refreshRemoteSensor(com.hubitat.app.DeviceWrapper device, retry=false)
     refreshOccupiedAttr(roomJson, device)
 }
 
-def setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoChangeoverActive=false, emergencyHeatActive=null, heatPoint=null, coolPoint=null, retry=false)
+def setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoChangeoverActive=false, emergencyHeatActive=null, heatPoint=null, coolPoint=null, retry=false, holdTypeLCC) // wj72 added holdTypeLCC
 {
     LogDebug("setThermosatSetPoint()")
     def deviceID = device.getDeviceNetworkId();
@@ -925,6 +925,8 @@ def setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoCh
     def honeywellLocation = deviceID.substring(0, (locDelminator-1))
     def honewellDeviceID = deviceID.substring((locDelminator+2))
 
+    // wj72 debug
+    LogInfo("**********wj72********** (inside setThermosatSetPoint) APP holdTypeLCC: ${holdTypeLCC}");
 
     if (mode == null)
     {
@@ -980,7 +982,7 @@ def setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoCh
     {
         body = [
                 mode:mode,
-                thermostatSetpointStatus:"PermanentHold", 
+                thermostatSetpointStatus:holdTypeLCC, 
                 heatSetpoint:heatPoint, 
                 coolSetpoint:coolPoint]
     }
@@ -1025,7 +1027,7 @@ def setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoCh
     return true;
 }
 
-def setThermosatFan(com.hubitat.app.DeviceWrapper device, fan=null, retry=false)
+def setThermosatFan(com.hubitat.app.DeviceWrapper device, fan=null, retry=false, tempHoldEnabled)
 {
     LogDebug("setThermosatFan()"  )
     def deviceID = device.getDeviceNetworkId();
