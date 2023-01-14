@@ -38,6 +38,7 @@ metadata {
         attribute "autoChangeoverActive", "enum", ["unsupported", "true", "false"]
         attribute "allowedModes", "enum", ["EmergencyHeat", "Heat", "Off", "Cool","Auto"]
         attribute "units", "enum", ["F", "C"]
+		command "removeHoldLCC" 
 
     }
     preferences{
@@ -53,6 +54,9 @@ metadata {
 		input ("descriptionText", "bool", 
 			   title: "Enable description text logging", 
 			   defaultValue: true)
+		input ("tempHoldEnabled", "bool", 
+			   title: "Enable Temporary hold mode, if false Permanent holds will be used (only applies to LCC thermostats)", 
+			   defaultValue: false)
     }
 }
 
@@ -87,6 +91,7 @@ void installed()
     coolModeEnabled = true
     debugLogs = false
     descriptionText = true
+	tempHoldEnabled = false
     refresh()
 }
 
@@ -167,17 +172,46 @@ void off()
     setThermostatMode("off")
 }
 
+//Defined Command : Remove hold and resume schedule (only applies to LCC thermostats) // wj72
+void removeHoldLCC()
+{
+    LogDebug("removeHold called");
+	
+	// wj72 debug
+    LogInfo("**********wj72********** DRIVER inside removeHoldLCC()")
+	
+	if (!parent.setThermosatSetPoint(device, thermostatmode, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), null, null, null, "NoHold"))
+    {
+        LogWarn("Remove hold failed, attempting a refresh and re-try.")
+        parent.refreshThermosat(device)
+        parent.setThermosatSetPoint(device, thermostatmode, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), null, null, null, "NoHold");
+    }
+}
+
 //Defined Command : temperature required (NUMBER) - Cooling setpoint in degrees
 void setCoolingSetpoint(temperature)
 {
     LogDebug("setCoolingSetpoint() - autoChangeoverActive: ${device.currentValue("autoChangeoverActive")}");
+
+	// wj72
+	if (tempHoldEnabled)
+	{
+		holdTypeLCC = "TemporaryHold"
+	}
+	else
+	{
+		holdTypeLCC = "PermanentHold"
+	}
+
+	// wj72 debug
+    LogInfo("**********wj72********** DRIVER holdTypeLCC=${holdTypeLCC}")
     
     //setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoChangeoverActive=false, heatPoint=null, coolPoint=null)
-    if (!parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), null, temperature))
+    if (!parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), null, temperature, null, holdTypeLCC)) // wj72 added holdTypeLCC
     {
         LogWarn("Set cooling point failed, attempting a refresh and re-try.")
         parent.refreshThermosat(device)
-        parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), null, temperature)
+        parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), null, temperature, null, holdTypeLCC) // wj72 added holdTypeLCC
     }
     else
     {
@@ -190,12 +224,25 @@ void setHeatingSetpoint(temperature)
 {
     LogDebug("setHeatingSetpoint() - autoChangeoverActive: ${device.currentValue("autoChangeoverActive")}");
 
+	// wj72
+	if (tempHoldEnabled)
+	{
+		holdTypeLCC = "TemporaryHold"
+	}
+	else
+	{
+		holdTypeLCC = "PermanentHold"
+	}
+
+	// wj72 debug
+    LogInfo("**********wj72********** DRIVER holdTypeLCC=${holdTypeLCC}")
+	
     //setThermosatSetPoint(com.hubitat.app.DeviceWrapper device, mode=null, autoChangeoverActive=false, heatPoint=null, coolPoint=null)
-    if (!parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), temperature, null))
+    if (!parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), temperature, null, null, holdTypeLCC)) // wj72 added holdTypeLCC
     {
         LogWarn("Set heating point failed, attempting a refresh and re-try.")
         parent.refreshThermosat(device)
-        parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), temperature, null)
+        parent.setThermosatSetPoint(device, null, device.currentValue("autoChangeoverActive"), device.currentValue("emergencyHeatActive"), temperature, null, null, holdTypeLCC) // wj72 added holdTypeLCC
     }
     else
     {
@@ -216,7 +263,7 @@ void setThermostatFanMode(fanmode)
     
     if(device.currentValue("supportedThermostatFanModes").contains(fanmode))
     {
-        if(!parent.setThermosatFan(device, fanmode))
+        if(!parent.setThermosatFan(device, fanmode, tempHoldEnabled)) // wj72 added tempHoldEnabled
         {
             LogWarn("Set fan mode failed, attempting a refresh and re-try.")
             parent.refreshThermosat(device)
